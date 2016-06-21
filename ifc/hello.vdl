@@ -1,0 +1,6 @@
+package ifc
+
+type Hello interface {
+  // Returns a greeting.
+  Get() (greeting string | error)
+}
