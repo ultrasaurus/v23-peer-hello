@@ -29,24 +29,28 @@ func main() {
   }
 
   _, server, err := v23.WithNewServer(ctx, "", ifc.HelloServer(service.Make()), security.AllowEveryone())
-  // TODO: error check
+  if err != nil {
+    log.Panic("Error from WithNewServer: ", err)
+  }
 
   ad := vdiscovery.Advertisement{
 		InterfaceName: "hello",
 	}
 
   // this advertises all of our endpoints
-  discovery.AdvertiseServer(ctx, d, server, "", &ad, nil)
+  _, err = discovery.AdvertiseServer(ctx, d, server, "", &ad, nil)
+  if err != nil {
+    log.Panic("Error from AdvertiseServer: ", err)
+  }
 
   // receive an advertisement (scan for all endpoints)
   updates, err := d.Scan(ctx, "")
   if err != nil {
     log.Panic("Error listening: ", err)
   }
-  fmt.Printf("updates %v\n", updates)
-  // ??? the following code seems to hang... if uncommented, "bye" doens't work
+  // the following doesn't work
   // for update := range updates {
-  //   fmt.Printf("update %v\n", update)
+  //    fmt.Printf("update %v\n", update)
   // }
 
   fmt.Printf("type some text and press return.\n")
