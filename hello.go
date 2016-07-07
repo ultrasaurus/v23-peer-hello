@@ -2,11 +2,8 @@ package main
 
 import (
   "bufio"
-  "flag"
   "fmt"
   "os"
-  "github.com/manveru/faker"
-
   "log"
   "./ifc"
   "./service"
@@ -19,21 +16,6 @@ import (
 )
 
 func main() {
-  var name string
-  flag.StringVar(&name, "id", "", "identifies unique instance, usually a name")
-  flag.Parse()
-
-  if name == "" {
-    fake, err := faker.New("en")
-    if err != nil {
-      fmt.Errorf("Error setting up name: %v", err)
-      return
-    }
-    name = fake.FirstName()
-  }
-
-  fmt.Printf("hello %v\n", name)
-
   //V23_CREDENTIALS => dir
   root_ctx, shutdown := v23.Init()  // create random in-memory principal
   // v23.getPrincipal(ctx)  temp, in memory
@@ -60,7 +42,7 @@ func main() {
   updates, err := d.Scan(ctx, "")
   if err != nil {
     log.Panic("Error listening: ", err)
-  } 
+  }
   fmt.Printf("updates %v\n", updates)
   // ??? the following code seems to hang... if uncommented, "bye" doens't work
   // for update := range updates {
