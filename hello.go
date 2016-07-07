@@ -5,13 +5,16 @@ import (
   "flag"
   "fmt"
   "os"
-  vsecurity "v.io/x/ref/lib/security"
   "github.com/manveru/faker"
 
   "log"
   "./ifc"
   "./service"
   "v.io/v23"
+  "v.io/v23/context"
+  "v.io/v23/security"
+  "v.io/x/ref/lib/discovery"
+  vdiscovery "v.io/v23/discovery"
   _ "v.io/x/ref/runtime/factories/generic"
 )
 
@@ -31,52 +34,41 @@ func main() {
 
   fmt.Printf("hello %v\n", name)
 
-  passphrase := ""   // get this from user eventually
+  //V23_CREDENTIALS => dir
+  root_ctx, shutdown := v23.Init()  // create random in-memory principal
+  // v23.getPrincipal(ctx)  temp, in memory
+  defer shutdown()
 
-  fmt.Printf("will put credentials here %v\n", "cred/"+name)
-  dir := "cred/"+name
-  _, tmp_err := os.Stat(dir)
-  fmt.Printf("os.Stat(dir) err=%v\n", tmp_err);
-  if _, err := os.Stat(dir); err == nil {
-    fmt.Printf("should load pricipal and do something with it.\n\n")
+  ctx, cancel := context.WithCancel(root_ctx)
 
-    // p, err := vsecurity.LoadPersistentPrincipal(dir, []byte(passphrase))
-    // if err != nil {
-    //   fmt.Errorf("Error loading principal: %v", err); return
-    // }
-
-  } else {
-    p, err := vsecurity.CreatePersistentPrincipal(dir, []byte(passphrase))
-    if err != nil {
-      fmt.Errorf("Error creating principal: %v", err); return
-    }
-    blessings, err := p.BlessSelf(name)
-    if err != nil {
-      fmt.Errorf("BlessSelf(%q) failed: %v", name, err); return
-    }
-    if err := vsecurity.SetDefaultBlessings(p, blessings); err != nil {
-      fmt.Errorf("could not set blessings %v as default: %v", blessings, err)
-      return
-    }
-    fmt.Printf("Bless you.\n\n")
+  d, err := v23.NewDiscovery(ctx)
+  if err != nil {
+    log.Panic("Error from NewDiscovery: ", err)
   }
 
-  ctx, shutdown := v23.Init()
-  defer shutdown()
   _, server, err := v23.WithNewServer(ctx, "", ifc.HelloServer(service.Make()), security.AllowEveryone())
+  // TODO: error check
 
-  // start server with random blessing
-  // ep: (@host:port@...@blessing)
-  // send an advertisement: with (localmomentID, endpoint)
-  AdvertiseServer(ctx, nil, server, "")
+  ad := vdiscovery.Advertisement{
+		InterfaceName: "hello",
+	}
 
-  // receive an advertisement
-  Scan()  // print who is nearby
-  
+  // this advertises all of our endpoints
+  discovery.AdvertiseServer(ctx, d, server, "", &ad, nil)
 
+  // receive an advertisement (scan for all endpoints)
+  updates, err := d.Scan(ctx, "")
   if err != nil {
     log.Panic("Error listening: ", err)
-  }
+  } 
+  fmt.Printf("updates %v\n", updates)
+  // ??? the following code seems to hang... if uncommented, "bye" doens't work
+  // for update := range updates {
+  //   fmt.Printf("update %v\n", update)
+  // }
+
+  fmt.Printf("type some text and press return.\n")
+  fmt.Printf("to exit: type 'bye' and press return %v\n")
 
   // read some text
   text := ""
@@ -84,7 +76,7 @@ func main() {
   scanner := bufio.NewScanner(os.Stdin)
   for scanner.Scan() {
     text = scanner.Text()
-    if text == "bye" { break }
+    if text == "bye" { cancel(); break }
     fmt.Printf("echo %v\n", scanner.Text())
     // f := ifc.HelloClient(*server)
     // ctx, cancel := context.WithTimeout(ctx, time.Minute)
