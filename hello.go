@@ -48,13 +48,27 @@ func main() {
   if err != nil {
     log.Panic("Error listening: ", err)
   }
-  // the following doesn't work
-  // for update := range updates {
-  //    fmt.Printf("update %v\n", update)
-  // }
 
-  fmt.Printf("type some text and press return.\n")
-  fmt.Printf("to exit: type 'bye' and press return %v\n")
+  fmt.Printf("\n\nto exit: type 'bye' and press return\n\n")
+
+
+  go func() {
+    // the flow is to keep reading from the channel till it is closed
+    // (which won't happen until the scan is aborted by cancelling the context).
+    // in this example, the cancel happens via user input below,
+    // so this is has to happen in parallel in a go routine
+    for update := range updates {
+      if (update.IsLost()) {
+        fmt.Printf("lost: %v\n", update.Id())
+      } else {
+       fmt.Printf("new: %v %v\n", update.Id(), update.InterfaceName())
+       addressList := update.Addresses()
+       for addrIndex := range addressList {
+         fmt.Printf("  %v %v\n", addrIndex, addressList[addrIndex])
+       }
+     }
+    }
+  }()
 
   // read some text
   text := ""
